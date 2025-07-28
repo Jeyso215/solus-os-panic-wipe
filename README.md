@@ -1,93 +1,155 @@
-# panic-wipe
-Securely erase all connected drives as quickly as possible
+# solus-os-panic-wipe
+Securely erase all connected drives as quickly as possible on Solus OS.
 
-### Usage:
+## Usage:
 
-Simply running `panic` will trigger a wipe of all devices. A basic wipe consists of 4 steps:
+To use this program on Solus, you'll need to:
 
-- Wipe the headers of all LUKS devices
-	- For users running HDDs, this step alone should be enough to render the data irrecoverable
-- Secure discard all data on all storage devices
-	- Only some SSDs support secure discard
-- Normal (insecure) discard on all storage devices
-	- This accounts for SSDs without secure discard support, but doesn't provide as strong security guarantees
-- Writes a notice to every connected storage device informing any attacker that the data has been wiped irrecoverably
-	- This should deter them from attempting to force you to unlock your drive (eg. legal threats or torture), since there's nothing to unlock
-	- *Note:* If the attacker suspects that you still have a usable backup, they might try to force you to unlock your backup instead
+1. Save it as a C file (e.g., ```panic_wipe.c```)
+2. Compile it with:
+```bash
+gcc panic_wipe.c -o panic_wipe
+```
+3. Make it executable:
+```bash
+chmod +x panic_wipe
+```
+4. Install required dependencies:
+```bash
+sudo eopkg install -y cryptsetup blkdiscard xdg-utils
+```
+
+You can then use it similarly to the Qubes version, but on Solus.
+
+### Features:
+
+Simply running ```panic``` will trigger a wipe of all devices. A basic wipe consists of 4 steps:
+
+- **Wipe the headers of all LUKS devices**:  
+  For users running HDDs, this step alone should be enough to render the data irrecoverable.
+
+- **Secure discard all data on all storage devices**:  
+  Only some SSDs support secure discard.
+
+- **Normal (insecure) discard on all storage devices**:  
+  This accounts for SSDs without secure discard support but doesn't provide as strong security guarantees.
+
+- **Writes a notice to every connected storage device**:  
+  Informing any attacker that the data has been wiped irrecoverably.  
+  This should deter them from attempting to force you to unlock your drive (e.g., legal threats or torture), since there's nothing to unlock.  
+  *Note:* If the attacker suspects that you still have a usable backup, they might try to force you to unlock your backup instead.
 
 The panic handler has multiple modes:
 
 #### Shutdown modes
 
-- Immediate poweroff (default)
-	- This mode is specified by running `panic --immediate`, or by simply running `panic` with no options. It powers off the system as soon as the data is wiped
-- Delayed poweroff
-	- This mode is specified by running `panic --delay <seconds>`. It's identical to a normal panic, except it waits `<seconds>` before powering off, to allow the drive more time to TRIM discarded blocks
-	- This mode is potentially more vulnerable to cold boot attacks, since contents of RAM aren't deleted until power is lost
-- Reboot
-	- This mode is specified by running `panic --reboot`. It's identical to normal panic, except it reboots the system instead of powering off, to allow the drive to TRIM discarded blocks after RAM is cleared
-	- This mode trusts the BIOS to zero RAM immediately on power-on. On systems which fail to do this, cold boot attacks may be possible
+- **Immediate poweroff (default)**:  
+  This mode is specified by running ```panic --immediate``` or by simply running ```panic``` with no options. It powers off the system as soon as the data is wiped.
+
+- **Delayed poweroff**:  
+  This mode is specified by running ```panic --delay <seconds>```. It waits ```<seconds>``` before powering off to allow the drive more time to TRIM discarded blocks.  
+  This mode is potentially more vulnerable to cold boot attacks since the contents of RAM aren't deleted until power is lost.
+
+- **Reboot**:  
+  This mode is specified by running ```panic --reboot```. It reboots the system instead of powering off, allowing the drive to TRIM discarded blocks after RAM is cleared.  
+  This mode trusts the BIOS to zero RAM immediately on power-on. On systems that fail to do this, cold boot attacks may be possible.
 
 #### Wipe modes
 
-- DISCARD (default)
-	- This wipe mode is specified by running `panic --erase=DISCARD`, or by simply running `panic` with no options. This wipe mode should be effective on the widest range of drives
-- OPAL *(untested)*
-	- This wipe mode is specified by running `panic --erase=OPAL`. This option tells OPAL self-encrypting drives to perform a factory reset
+- **DISCARD (default)**:  
+  This wipe mode is effective on the widest range of drives.
 
-### Installation
+- **OPAL *(untested)*:  
+  This wipe mode tells OPAL self-encrypting drives to perform a factory reset.
 
-Optionally, after installing this script, it can be bound to a keybind. This can allow you to more quickly trigger a panic wipe. Make sure the keybind isn't something you'll accidentally trigger, since this script will irrecoverably erase ALL data on EVERY storage device it can find
+---
 
-*Note:* To bind this script to a keybind, you must have passwordless root enabled on your system. While the script can try to elevate to root automatically, it can only ask for your password if it's running inside an interactive terminal
+### Installation:
 
-#### Qubes Installation
+1. **Download the script**:  
+   Save it as a C file (e.g., ```panic.c```).
 
-There are 2 ways to install this script onto a Qubes system. Both methods should work, but there may be situations where the 2nd method works better
+2. **Install required dependencies**:  
+   Open a terminal and run:  
+   ```bash
+   sudo eopkg install -y gcc cryptsetup blkdiscard xdg-utils
+   ```
 
-**Method 1:**
+3. **Compile the script**:  
+   ```bash
+   gcc panic.c -o panic
+   ```
 
-- Copy this script into a trusted VM
-	- Ideally this would be a disposable which has never been connected to the network
-	- For extra security, you can use [qubes-clean](https://github.com/NobodySpecial256/qubes-clean) to copy this file into the disposable
-- (Optional, but recommended) Review `panic.c` to ensure no malicious behavior has been added
-- Compile the script
-	- (In your trusted VM) `gcc QubesIncoming/<source qube>/panic.c -o panic`
-- Copy the compiled binary into dom0
-	- (In a dom0 terminal) `qvm-run --pass-io 'cat /home/user/panic' | sudo tee /usr/local/bin/panic > /dev/null`
-- Mark `panic` as executable
-	- (In a dom0 terminal) `sudo chmod +x /usr/local/bin/panic`
+4. **Make it executable**:  
+   ```bash
+   chmod +x panic
+   ```
 
-**Method 2:**
+5. **Install the binary**:  
+   Move it to a directory in your system's ```$PATH``` (e.g., ```/usr/local/bin```):  
+   ```bash
+   sudo mv panic /usr/local/bin/
+   ```
 
-- Install `gcc` into dom0
-	- (In a dom0 terminal) `sudo qubes-dom0-update gcc`
-- Copy this script into dom0
-	- For extra security, you can use [qubes-clean](https://github.com/NobodySpecial256/qubes-clean) to copy this file into dom0
-- (Optional, but recommended) Review `panic.c` to ensure no malicious behavior has been added
-- Compile the script
-	- (In a dom0 terminal) `gcc panic.c -o panic`
-- (Optional, but recommended) Copy or move the script to `/usr/local/bin` so that it's within `$PATH`
+---
 
+### Keybinding (Optional):
 
-#### Non-Qubes Installation
+You can bind this script to a keybind for quick access. Ensure the keybind isn't something you'll accidentally trigger, as this script will irrecoverably erase ALL data on EVERY storage device it can find.
 
-Simply download the script, compile it, and put it into your system's `$PATH` (I recommend `/usr/local/bin`)
+To bind it to a key, follow these steps:
 
-### Debugging
+1. **Edit your desktop environment's keyboard shortcuts**:  
+   For example, in XFCE (the default desktop for Solus), go to **Settings > Keyboard > Application Shortcuts**.
 
-You can make sure everything is working properly by running `panic --dbg=dry-run`. This will make sure that the panic wipe is able to run successfully, without performing any destructive actions or powering off the system
+2. **Add a new shortcut**:  
+   - **Command**: ```/usr/local/bin/panic```
+   - **Shortcut**: Choose a key combination that's hard to press accidentally (e.g., ```Ctrl+Shift+Delete```).
 
-**Warning:** Arguments are processed in the order in which they're passed. To avoid data loss, `--dbg=dry-run` must be the _last_ argument passed. Any arguments which come later will override its behavior
+3. **Test the shortcut**:  
+   Ensure it works as expected.
 
-For extra assurance, you can test the panic wipe in a VM or on a separate system without important data. For people willing to read some C code, browsing the source will reveal more debug options, as well as alternative wipe modes with different security properties
+---
 
-*Note: OPAL erase mode has not yet been tested*
+### Debugging:
 
-### How to copy files to dom0
+You can test the script without performing any destructive actions by running:  
+```bash
+panic --dbg=dry-run
+```
 
-The Qubes official documentation has information about copying files to dom0: https://www.qubes-os.org/doc/how-to-copy-from-dom0/#copying-to-dom0
+**Warning:** Arguments are processed in the order they're passed. To avoid data loss, ```--dbg=dry-run``` must be the *last* argument passed. Any arguments that come later will override its behavior.
 
-For better security, you should download this into a disposable VM, to prevent a compromised qube from tampering with the data locally
+For additional assurance, you can test the script in a VM or on a system without important data.
 
-For the best security, you should use [qubes-clean](https://github.com/NobodySpecial256/qubes-clean) to copy this script into dom0
+---
+
+### Notes:
+
+- **OPAL erase mode is untested**:  
+  This feature has not yet been tested on Solus.
+
+- **Passwordless sudo**:  
+  To bind this script to a keybind, ensure that ```sudo``` is configured to run without a password prompt. This is necessary for non-interactive execution.
+
+- **Use with caution**:  
+  This script permanently wipes data. Use it only when absolutely necessary.
+
+---
+
+### Security Considerations:
+
+- **Download securely**:  
+  Download the script over a secure connection (e.g., HTTPS) to prevent tampering.
+
+- **Review the source code**:  
+  Before compiling and running the script, review the source code to ensure it hasn't been tampered with or contains malicious behavior.
+
+- **Test in a safe environment**:  
+  Always test the script in a non-critical environment before using it on your primary system.
+
+- Download our [**lightweight & efficient clipboard cleaning tool for Solus OS**](https://github.com/Jeyso215/CleanSlate-Solus-OS)
+
+---
+
+By following these steps, you can set up and use the panic script on Solus 4.7 Endurance x86_64 to securely wipe your devices in emergency situations.
